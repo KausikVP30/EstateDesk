@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EstateDesk Agent & Office Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2f6f8;
+      --ink: #111827;
+      --card: #ffffff;
+      --line: #dbe6ec;
+      --brand: #0c4a6e;
+      --brand2: #0f766e;
+      --muted: #4b5563;
+      --ok: #166534;
+      --bad: #b91c1c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Outfit', sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(160deg, #f2f6f8 0%, #ecf7f5 40%, #f8f5ef 100%);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 18px 50px; }
+    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .title { font-size: 28px; font-weight: 700; }
+    .title span { color: var(--brand2); }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 8px 20px rgba(17, 24, 39, .06);
+      padding: 16px;
+    }
+    h2 { margin: 0 0 8px; font-size: 18px; }
+    input, select, button {
+      width: 100%; padding: 10px 11px; border-radius: 10px; border: 1px solid var(--line); font-size: 14px;
+    }
+    button { border: 0; background: var(--brand); color: white; cursor: pointer; }
+    button.alt { background: var(--brand2); }
+    button.gray { background: #64748b; }
+    .row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px; font-size: 13px; text-align: left; }
+    th { font-size: 12px; text-transform: uppercase; color: var(--muted); }
+    .status { margin-top: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; font-size: 13px; }
+    .ok { color: var(--ok); }
+    .bad { color: var(--bad); }
+    .hide { display: none; }
+    .mono { font-family: 'Space Mono', monospace; font-size: 12px; }
+    @media (max-width: 940px) {
+      .row2, .row3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="title">EstateDesk <span>Agent & Office</span></div>
+    <a href="customer.html">Go To Customer Portal</a>
+  </div>
+
+  <div id="loginCard" class="card">
+    <h2>Agent Login</h2>
+    <div class="row2">
+      <input id="agentEmail" placeholder="Agent email">
+      <input id="agentPassword" type="password" placeholder="Password">
+    </div>
+    <button onclick="loginAgent()">Login</button>
+    <div id="loginMsg" class="status hide"></div>
+  </div>
+
+  <div id="portal" class="grid hide">
+    <div class="card">
+      <h2>Agent Session</h2>
+      <div class="mono">Agent ID: <span id="aid"></span> | <span id="aname"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>Assigned Customer Requests</h2>
+      <button class="gray" onclick="loadAssigned()">Refresh Assigned</button>
+      <table>
+        <thead>
+        <tr>
+          <th>ID</th><th>Type</th><th>Customer</th><th>Listing</th><th>Status</th><th>Action</th>
+        </tr>
+        </thead>
+        <tbody id="assignedRows"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Office/Admin Assignment</h2>
+      <div class="row3">
+        <input id="assignRequestId" type="number" placeholder="Request ID">
+        <input id="assignAgentId" type="number" placeholder="Agent ID">
+        <button class="alt" onclick="assignAgent()">Assign Agent</button>
+      </div>
+      <button class="gray" onclick="loadUnassigned()">Load Unassigned Requests</button>
+      <table>
+        <thead>
+        <tr>
+          <th>ID</th><th>Type</th><th>Customer</th><th>City</th><th>Locality</th><th>Listing</th>
+        </tr>
+        </thead>
+        <tbody id="unassignedRows"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Office Reports</h2>
+      <div class="row3">
+        <input id="fromDate" type="date">
+        <input id="toDate" type="date">
+        <button class="gray" onclick="loadReports()">Run Reports</button>
+      </div>
+      <h3>Sales</h3>
+      <table><thead><tr><th>Listing</th><th>Agent</th><th>Address</th><th>Price</th><th>Date</th></tr></thead><tbody id="salesRows"></tbody></table>
+      <h3>Rentals</h3>
+      <table><thead><tr><th>Listing</th><th>Agent</th><th>Address</th><th>Rent</th><th>Date</th></tr></thead><tbody id="rentalRows"></tbody></table>
+    </div>
+
+    <div id="appMsg" class="status hide"></div>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:8080/api';
+  let currentAgent = null;
+
+  function toast(el, text, ok) {
+    el.classList.remove('hide', 'ok', 'bad');
+    el.classList.add(ok ? 'ok' : 'bad');
+    el.textContent = text;
+  }
+
+  function val(id) { return (document.getElementById(id)?.value || '').trim(); }
+
+  async function post(url, body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || data.error || 'Request failed');
+    }
+    return data;
+  }
+
+  async function loginAgent() {
+    try {
+      const data = await post(`${API}/auth/login`, { email: val('agentEmail'), password: val('agentPassword') });
+      currentAgent = data;
+      document.getElementById('loginCard').classList.add('hide');
+      document.getElementById('portal').classList.remove('hide');
+      document.getElementById('aid').textContent = data.id;
+      document.getElementById('aname').textContent = `${data.firstName} ${data.lastName || ''}`.trim();
+      await loadAssigned();
+      await loadUnassigned();
+      await loadReports();
+    } catch (e) {
+      toast(document.getElementById('loginMsg'), e.message, false);
+    }
+  }
+
+  function renderAssignedRows(rows) {
+    const body = document.getElementById('assignedRows');
+    body.innerHTML = '';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      const type = String(r.request_type || '').toUpperCase();
+      tr.innerHTML = `
+        <td>${r.request_id}</td>
+        <td>${type}</td>
+        <td>${r.first_name || ''} ${r.last_name || ''}</td>
+        <td>${r.listing_id || '-'}</td>
+        <td>${r.status}</td>
+        <td id="act-${r.request_id}"></td>
+      `;
+      body.appendChild(tr);
+
+      const target = document.getElementById(`act-${r.request_id}`);
+      const dealDate = new Date().toISOString().slice(0, 10);
+
+      if (type === 'BUY') {
+        target.innerHTML = `
+          <input id="p-${r.request_id}" type="number" placeholder="Final price" value="${r.offered_price || ''}">
+          <input id="d-${r.request_id}" type="date" value="${dealDate}">
+          <button onclick="approveBuy(${r.request_id})">Approve BUY</button>
+        `;
+      } else if (type === 'RENT') {
+        target.innerHTML = `
+          <input id="rs-${r.request_id}" type="date" value="${(r.rent_start || '').toString().slice(0, 10)}">
+          <input id="re-${r.request_id}" type="date" value="${(r.rent_end || '').toString().slice(0, 10)}">
+          <input id="d-${r.request_id}" type="date" value="${dealDate}">
+          <button onclick="approveRent(${r.request_id})">Approve RENT</button>
+        `;
+      } else {
+        target.innerHTML = `<button onclick="approveList(${r.request_id})">Approve LIST</button>`;
+      }
+    });
+  }
+
+  async function loadAssigned() {
+    if (!currentAgent) return;
+    try {
+      const res = await fetch(`${API}/agent/requests?agentId=${currentAgent.id}`);
+      const rows = await res.json();
+      renderAssignedRows(rows);
+    } catch (e) {
+      toast(document.getElementById('appMsg'), 'Could not load assigned requests', false);
+    }
+  }
+
+  async function approveBuy(id) {
+    try {
+      await post(`${API}/agent/requests/${id}/approve`, {
+        agentId: currentAgent.id,
+        finalPrice: Number(val(`p-${id}`)),
+        dealDate: val(`d-${id}`)
+      });
+      toast(document.getElementById('appMsg'), `BUY request ${id} approved and recorded`, true);
+      await loadAssigned();
+      await loadReports();
+    } catch (e) {
+      toast(document.getElementById('appMsg'), e.message, false);
+    }
+  }
+
+  async function approveRent(id) {
+    try {
+      await post(`${API}/agent/requests/${id}/approve`, {
+        agentId: currentAgent.id,
+        rentStart: val(`rs-${id}`),
+        rentEnd: val(`re-${id}`),
+        dealDate: val(`d-${id}`)
+      });
+      toast(document.getElementById('appMsg'), `RENT request ${id} approved and recorded`, true);
+      await loadAssigned();
+      await loadReports();
+    } catch (e) {
+      toast(document.getElementById('appMsg'), e.message, false);
+    }
+  }
+
+  async function approveList(id) {
+    try {
+      await post(`${API}/agent/requests/${id}/approve`, { agentId: currentAgent.id });
+      toast(document.getElementById('appMsg'), `LIST request ${id} approved`, true);
+      await loadAssigned();
+    } catch (e) {
+      toast(document.getElementById('appMsg'), e.message, false);
+    }
+  }
+
+  async function loadUnassigned() {
+    try {
+      const res = await fetch(`${API}/admin/requests/unassigned`);
+      const rows = await res.json();
+      const body = document.getElementById('unassignedRows');
+      body.innerHTML = '';
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${r.request_id}</td>
+          <td>${r.request_type}</td>
+          <td>${r.first_name || ''} ${r.last_name || ''}</td>
+          <td>${r.target_city || '-'}</td>
+          <td>${r.target_locality || '-'}</td>
+          <td>${r.listing_id || '-'}</td>
+        `;
+        body.appendChild(tr);
+      });
+    } catch (e) {
+      toast(document.getElementById('appMsg'), 'Could not load unassigned requests', false);
+    }
+  }
+
+  async function assignAgent() {
+    try {
+      await post(`${API}/admin/requests/${val('assignRequestId')}/assign`, {
+        agentId: Number(val('assignAgentId'))
+      });
+      toast(document.getElementById('appMsg'), 'Request assigned successfully', true);
+      await loadUnassigned();
+      await loadAssigned();
+    } catch (e) {
+      toast(document.getElementById('appMsg'), e.message, false);
+    }
+  }
+
+  async function loadReports() {
+    if (!currentAgent) return;
+    const from = val('fromDate');
+    const to = val('toDate');
+    const sales = await fetch(`${API}/reports/sales?agentId=${currentAgent.id}&allAgents=true&from=${from}&to=${to}`).then(r => r.json()).catch(() => []);
+    const rentals = await fetch(`${API}/reports/rentals?agentId=${currentAgent.id}&allAgents=true&from=${from}&to=${to}`).then(r => r.json()).catch(() => []);
+
+    const sBody = document.getElementById('salesRows');
+    sBody.innerHTML = '';
+    sales.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${r.listing_id}</td><td>${r.agent_name || r.agent_id}</td><td>${r.address || '-'}</td><td>${r.final_price || '-'}</td><td>${r.deal_date || '-'}</td>`;
+      sBody.appendChild(tr);
+    });
+
+    const rBody = document.getElementById('rentalRows');
+    rBody.innerHTML = '';
+    rentals.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${r.listing_id}</td><td>${r.agent_name || r.agent_id}</td><td>${r.address || '-'}</td><td>${r.monthly_rent || '-'}</td><td>${r.deal_date || '-'}</td>`;
+      rBody.appendChild(tr);
+    });
+  }
+</script>
+</body>
+</html>

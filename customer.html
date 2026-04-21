@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EstateDesk Client Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f3efe5;
+      --ink: #18130d;
+      --card: #fffaf2;
+      --line: #d8c9af;
+      --brand: #0f766e;
+      --brand2: #b45309;
+      --ok: #166534;
+      --bad: #9f1239;
+      --muted: #665947;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Outfit', sans-serif; color: var(--ink); background: var(--bg); }
+    .wrap { max-width: 1220px; margin: 0 auto; padding: 24px 16px 48px; }
+    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .brand { font-size: 28px; font-weight: 700; }
+    .brand span { color: var(--brand2); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .row4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    input, select, textarea, button { width: 100%; padding: 10px; border-radius: 9px; border: 1px solid var(--line); font-family: inherit; }
+    textarea { min-height: 76px; resize: vertical; }
+    button { border: 0; background: var(--ink); color: #fff; cursor: pointer; }
+    button.alt { background: var(--brand); }
+    button.warm { background: var(--brand2); }
+    .status { margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 13px; }
+    .ok { color: var(--ok); }
+    .bad { color: var(--bad); }
+    .hide { display: none; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px; font-size: 13px; text-align: left; }
+    th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .mono { font-family: 'Space Mono', monospace; }
+    @media (max-width: 900px) {
+      .row2, .row3, .row4 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">EstateDesk <span>Client</span></div>
+    <a href="agent.html">Go To Agent/Office</a>
+  </div>
+
+  <div id="authCard" class="card">
+    <h2>Client Login / Register</h2>
+    <div class="row2">
+      <div>
+        <h3>Login</h3>
+        <div class="row2">
+          <input id="loginEmail" placeholder="Email">
+          <input id="loginPassword" type="password" placeholder="Password">
+        </div>
+        <button onclick="loginClient()">Login</button>
+      </div>
+      <div>
+        <h3>Register</h3>
+        <div class="row2">
+          <input id="regFirst" placeholder="First name">
+          <input id="regLast" placeholder="Last name">
+          <input id="regEmail" placeholder="Email">
+          <input id="regPhone" placeholder="Phone number">
+          <input id="regPassword" type="password" placeholder="Password">
+        </div>
+        <button class="alt" onclick="registerClient()">Create Account</button>
+      </div>
+    </div>
+    <div id="authMsg" class="status hide"></div>
+  </div>
+
+  <div id="app" class="grid hide">
+    <div class="card">
+      <h2>Welcome, <span id="who"></span></h2>
+      <div class="mono">Client ID: <span id="cid"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>Available Active Listings</h2>
+      <div class="row3">
+        <button onclick="loadActiveListings()">Refresh Listings</button>
+        <select id="listingTypeFilter" onchange="renderActiveListings()">
+          <option value="all">All Listings</option>
+          <option value="sale">Only Sale</option>
+          <option value="rent">Only Rent</option>
+        </select>
+        <div></div>
+      </div>
+      <table>
+        <thead>
+        <tr>
+          <th>ID</th><th>Type</th><th>City</th><th>Locality</th><th>BHK</th><th>Price/Rent</th><th>Agent</th><th>Action</th>
+        </tr>
+        </thead>
+        <tbody id="listingRows"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Buy Or Rent Request</h2>
+      <div class="row4">
+        <select id="reqType">
+          <option value="BUY">Buy</option>
+          <option value="RENT">Rent</option>
+        </select>
+        <input id="reqListingId" type="number" placeholder="Listing ID">
+        <input id="reqOffer" type="number" placeholder="Offered Price (BUY)">
+        <input id="reqRentStart" type="date">
+      </div>
+      <div class="row3">
+        <input id="reqRentEnd" type="date">
+        <input id="reqCity" placeholder="Target city">
+        <input id="reqLocality" placeholder="Target locality">
+      </div>
+      <button onclick="submitBuyRentRequest()">Submit Request</button>
+    </div>
+
+    <div class="card">
+      <h2>Create My Own Listing</h2>
+      <div class="row4">
+        <select id="ownListingType"><option value="sale">sale</option><option value="rent">rent</option></select>
+        <select id="ownAgent"></select>
+        <select id="ownUnitType"><option value="apartment">apartment</option><option value="house">house</option><option value="villa">villa</option><option value="building">building</option></select>
+        <select id="ownFacing"><option value="north">north</option><option value="south">south</option><option value="east">east</option><option value="west">west</option></select>
+      </div>
+      <div class="row4">
+        <input id="ownState" placeholder="State">
+        <input id="ownCity" placeholder="City">
+        <input id="ownLocality" placeholder="Locality">
+        <input id="ownPincode" placeholder="Pincode">
+      </div>
+      <div class="row4">
+        <input id="ownHouse" placeholder="House number">
+        <input id="ownSize" type="number" placeholder="Size sqft">
+        <input id="ownBhk" type="number" placeholder="BHK">
+        <input id="ownBath" type="number" placeholder="Bathroom count">
+      </div>
+      <div class="row4">
+        <input id="ownYear" type="number" placeholder="Construction year">
+        <select id="ownFurnishing"><option value="semi furnished">semi furnished</option><option value="fully furnished">fully furnished</option><option value="not furnished">not furnished</option></select>
+        <input id="ownPrice" type="number" placeholder="Sale price">
+        <input id="ownRent" type="number" placeholder="Monthly rent">
+      </div>
+      <div class="row3">
+        <input id="ownDeposit" type="number" placeholder="Security deposit">
+        <input id="ownMaint" type="number" placeholder="Maintenance">
+        <textarea id="ownNotes" placeholder="Notes"></textarea>
+      </div>
+      <button class="warm" onclick="createOwnListing()">Create Listing</button>
+    </div>
+
+    <div class="card">
+      <h2>My Listings</h2>
+      <button onclick="loadMyListings()">Refresh My Listings</button>
+      <table>
+        <thead>
+        <tr><th>ID</th><th>Type</th><th>Status</th><th>Address</th><th>Price</th><th>Agent</th></tr>
+        </thead>
+        <tbody id="myListingRows"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>My Requests</h2>
+      <button onclick="loadRequests()">Refresh Requests</button>
+      <table>
+        <thead>
+        <tr><th>ID</th><th>Type</th><th>Status</th><th>Assigned Agent</th><th>Listing</th><th>Created</th></tr>
+        </thead>
+        <tbody id="requestRows"></tbody>
+      </table>
+    </div>
+
+    <div id="appMsg" class="status hide"></div>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:8080/api';
+  let currentClient = null;
+  let activeListings = [];
+
+  function toast(el, txt, ok) {
+    el.classList.remove('hide', 'ok', 'bad');
+    el.classList.add(ok ? 'ok' : 'bad');
+    el.textContent = txt;
+  }
+
+  function val(id) { return (document.getElementById(id)?.value || '').trim(); }
+  function toInt(v) { return v ? parseInt(v, 10) : null; }
+  function toNum(v) { return v ? Number(v) : null; }
+
+  function currentClientId() {
+    if (!currentClient) return null;
+    return currentClient.client_id ?? currentClient.clientId ?? null;
+  }
+
+  async function post(url, body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || data.error || 'Request failed');
+    return data;
+  }
+
+  async function registerClient() {
+    try {
+      await post(`${API}/customer/auth/register`, {
+        firstName: val('regFirst'),
+        lastName: val('regLast'),
+        email: val('regEmail'),
+        password: val('regPassword'),
+        phone: val('regPhone')
+      });
+      toast(document.getElementById('authMsg'), 'Client registered. Please login.', true);
+    } catch (e) {
+      toast(document.getElementById('authMsg'), e.message, false);
+    }
+  }
+
+  async function loginClient() {
+    try {
+      const data = await post(`${API}/customer/auth/login`, { email: val('loginEmail'), password: val('loginPassword') });
+      currentClient = data;
+      document.getElementById('authCard').classList.add('hide');
+      document.getElementById('app').classList.remove('hide');
+      document.getElementById('who').textContent = `${data.first_name} ${data.last_name || ''}`.trim();
+      document.getElementById('cid').textContent = currentClientId();
+      await loadAgentsForForm();
+      await loadActiveListings();
+      await loadMyListings();
+      await loadRequests();
+    } catch (e) {
+      toast(document.getElementById('authMsg'), e.message, false);
+    }
+  }
+
+  async function loadAgentsForForm() {
+    const sel = document.getElementById('ownAgent');
+    sel.innerHTML = '';
+    const rows = await fetch(`${API}/agents`).then(r => r.json()).catch(() => []);
+    rows.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.agent_id;
+      opt.textContent = `${a.agent_id} - ${a.first_name} ${a.last_name || ''}`;
+      sel.appendChild(opt);
+    });
+  }
+
+  function chooseForBuy(listingId, city, locality, price) {
+    document.getElementById('reqType').value = 'BUY';
+    document.getElementById('reqListingId').value = listingId;
+    document.getElementById('reqCity').value = city || '';
+    document.getElementById('reqLocality').value = locality || '';
+    document.getElementById('reqOffer').value = price || '';
+  }
+
+  function chooseForRent(listingId, city, locality) {
+    document.getElementById('reqType').value = 'RENT';
+    document.getElementById('reqListingId').value = listingId;
+    document.getElementById('reqCity').value = city || '';
+    document.getElementById('reqLocality').value = locality || '';
+  }
+
+  function renderActiveListings() {
+    const filter = val('listingTypeFilter') || 'all';
+    const rows = filter === 'all' ? activeListings : activeListings.filter(r => r.listing_type === filter);
+
+    const body = document.getElementById('listingRows');
+    body.innerHTML = '';
+
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      const rate = r.listing_type === 'sale' ? r.price : r.monthly_rent;
+
+      tr.innerHTML = `
+        <td>${r.listing_id}</td>
+        <td>${r.listing_type}</td>
+        <td>${r.city}</td>
+        <td>${r.locality}</td>
+        <td>${r.bhk}</td>
+        <td>${rate || '-'}</td>
+        <td>${(r.agent_name || '').trim() || '-'}</td>
+        <td class="action-cell"></td>
+      `;
+
+      const actionCell = tr.querySelector('.action-cell');
+      const btn = document.createElement('button');
+
+      if (r.listing_type === 'sale') {
+        btn.textContent = 'Buy';
+        btn.addEventListener('click', () => {
+          chooseForBuy(r.listing_id, r.city, r.locality, r.price || '');
+        });
+      } else {
+        btn.textContent = 'Rent';
+        btn.className = 'alt';
+        btn.addEventListener('click', () => {
+          chooseForRent(r.listing_id, r.city, r.locality);
+        });
+      }
+
+      actionCell.appendChild(btn);
+      body.appendChild(tr);
+    });
+  }
+
+  async function loadActiveListings() {
+    activeListings = await fetch(`${API}/listings/active`).then(r => r.json()).catch(() => []);
+    renderActiveListings();
+  }
+
+  async function submitBuyRentRequest() {
+    if (!currentClient) return;
+    const clientId = currentClientId();
+    if (!clientId) {
+      toast(document.getElementById('appMsg'), 'Login session missing client id. Please login again.', false);
+      return;
+    }
+    const type = val('reqType');
+    const payload = {
+      clientId,
+      requestType: type,
+      listingId: toInt(val('reqListingId')),
+      targetCity: val('reqCity') || null,
+      targetLocality: val('reqLocality') || null
+    };
+
+    if (type === 'BUY') {
+      payload.offeredPrice = toNum(val('reqOffer'));
+      payload.preferredListingType = 'sale';
+    } else {
+      payload.rentStart = val('reqRentStart') || null;
+      payload.rentEnd = val('reqRentEnd') || null;
+      payload.preferredListingType = 'rent';
+    }
+
+    try {
+      await post(`${API}/customer/requests`, payload);
+      toast(document.getElementById('appMsg'), `${type} request submitted`, true);
+      await loadRequests();
+    } catch (e) {
+      toast(document.getElementById('appMsg'), e.message, false);
+    }
+  }
+
+  async function createOwnListing() {
+    if (!currentClient) return;
+    const clientId = currentClientId();
+    if (!clientId) {
+      toast(document.getElementById('appMsg'), 'Login session missing client id. Please login again.', false);
+      return;
+    }
+    try {
+      const listingType = val('ownListingType');
+      await post(`${API}/listings/create-by-client`, {
+        clientId,
+        agentId: toInt(val('ownAgent')),
+        state: val('ownState'),
+        city: val('ownCity'),
+        locality: val('ownLocality'),
+        pincode: val('ownPincode'),
+        houseNumber: val('ownHouse'),
+        unitType: val('ownUnitType'),
+        notes: val('ownNotes') || null,
+        listingType,
+        sizeSqft: toNum(val('ownSize')),
+        bhk: toInt(val('ownBhk')),
+        bathroomCount: toInt(val('ownBath')),
+        constructionYear: toInt(val('ownYear')),
+        furnishing: val('ownFurnishing'),
+        price: listingType === 'sale' ? toNum(val('ownPrice')) : null,
+        monthlyRent: listingType === 'rent' ? toNum(val('ownRent')) : null,
+        securityDeposit: listingType === 'rent' ? toNum(val('ownDeposit')) : null,
+        maintenanceCost: toNum(val('ownMaint')),
+        facing: val('ownFacing')
+      });
+      toast(document.getElementById('appMsg'), 'Listing created successfully', true);
+      await loadMyListings();
+      await loadActiveListings();
+    } catch (e) {
+      toast(document.getElementById('appMsg'), e.message, false);
+    }
+  }
+
+  async function loadMyListings() {
+    if (!currentClient) return;
+    const clientId = currentClientId();
+    if (!clientId) return;
+    const rows = await fetch(`${API}/listings/mine?clientId=${clientId}`).then(r => r.json()).catch(() => []);
+    const body = document.getElementById('myListingRows');
+    body.innerHTML = '';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${r.listing_id}</td><td>${r.listing_type}</td><td>${r.status}</td><td>${r.house_number}, ${r.locality}, ${r.city}</td><td>${r.price || r.monthly_rent || '-'}</td><td>${r.agent_name || '-'}</td>`;
+      body.appendChild(tr);
+    });
+  }
+
+  async function loadRequests() {
+    if (!currentClient) return;
+    const clientId = currentClientId();
+    if (!clientId) return;
+    const rows = await fetch(`${API}/customer/requests/${clientId}`).then(r => r.json()).catch(() => []);
+    const body = document.getElementById('requestRows');
+    body.innerHTML = '';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${r.request_id}</td><td>${r.request_type}</td><td>${r.status}</td><td>${(r.assigned_agent_name || '').trim() || '-'}</td><td>${r.listing_id || '-'}</td><td>${r.created_at ? String(r.created_at).slice(0, 19).replace('T', ' ') : '-'}</td>`;
+      body.appendChild(tr);
+    });
+  }
+</script>
+</body>
+</html>
